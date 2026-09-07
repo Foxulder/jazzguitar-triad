@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>재즈 기타 - 코드톤 연습</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent-color: #38bdf8;
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+            --root-color: #f43f5e;
+            --tone3-color: #34d399;
+            --tone5-color: #a78bfa;
+            --tone7-color: #fbbf24;
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 950px;
+        }
+        h1 {
+            text-align: center;
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: var(--accent-color);
+        }
+        .top-section {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .current-chord-display { font-size: 32px; font-weight: bold; color: var(--accent-color); }
+
+        .player-bar {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .play-btn {
+            background-color: #10b981;
+            color: white;
+            font-size: 15px;
+            padding: 8px 18px;
+        }
+        .play-btn.playing { background-color: #ef4444; }
+
+        .control-group {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .control-row {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .control-label {
+            font-size: 13px;
+            color: var(--text-sub);
+            width: 100px;
+            font-weight: bold;
+        }
+        button {
+            background-color: #334155;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 13px;
+            transition: 0.2s;
+        }
+        button.active, button:hover {
+            background-color: var(--accent-color);
+            color: #0f172a;
+        }
+
+        .fretboard-container {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .fretboard {
+            position: relative;
+            width: 840px;
+            height: 180px;
+            background: #111827;
+            border: 2px solid #475569;
+            border-radius: 4px;
+        }
+        .nut-line {
+            position: absolute;
+            top: 0;
+            left: 55px;
+            width: 6px;
+            height: 100%;
+            background: #e2e8f0;
+            z-index: 5;
+        }
+        .string {
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: #94a3b8;
+            z-index: 2;
+        }
+        .fret-line {
+            position: absolute;
+            height: 100%;
+            width: 2px;
+            background: #475569;
+            z-index: 1;
+        }
+        .note-marker {
+            position: absolute;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+            z-index: 10;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .note-marker.playing-neon {
+            box-shadow: 0 0 15px 5px #ffffff, 0 0 25px 8px var(--accent-color);
+            transform: translate(-50%, -50%) scale(1.35);
+            z-index: 30;
+            border: 2px solid #ffffff;
+        }
+
+        .timeline-section {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .timeline-bars {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .bar-card {
+            flex: 1;
+            background: #334155;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: 0.1s;
+        }
+        .bar-card.active {
+            border-color: var(--accent-color);
+            background: #1e293b;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+        }
+        .bar-chord { font-size: 18px; font-weight: bold; color: var(--accent-color); }
+        .bar-info { font-size: 11px; color: var(--text-sub); margin-top: 4px; }
+
+        .legend {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 12px;
+            font-size: 13px;
+            color: var(--text-sub);
+        }
+        .legend span::before {
+            content: '';
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .leg-root::before { background: var(--root-color); }
+        .leg-3rd::before { background: var(--tone3-color); }
+        .leg-5th::before { background: var(--tone5-color); }
+        .leg-7th::before { background: var(--tone7-color); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🎸 재즈 기타 - 코드톤 (트라이어드) 연습</h1>
+
+    <div class="top-section">
+        <div>
+            <div style="color: var(--text-sub); font-size: 13px;" id="currentKeyLabel">현재 키: C Major (5도권 순환 연습)</div>
+            <div class="song-title" style="font-size: 16px; margin-top: 4px;">II - V - I - VI 진행</div>
+        </div>
+        <div>
+            <div style="color: var(--text-sub); font-size: 12px; text-align: right;">Current Chord</div>
+            <div class="current-chord-display" id="display-chord-name">Dm7</div>
+        </div>
+    </div>
+
+    <div class="player-bar">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <button class="play-btn" id="playBtn" onclick="togglePlay()">▶ 루프 재생</button>
+            <span id="beatIndicator" style="font-size: 14px; font-weight: bold; color: var(--tone3-color);">대기 중</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <label style="font-size: 13px; color: var(--text-sub);">BPM:</label>
+            <input type="range" id="bpmRange" min="60" max="160" value="80" oninput="updateBpm(this.value)">
+            <span id="bpmText" style="font-weight: bold; width: 35px;">80</span>
+        </div>
+    </div>
+
+    <div class="control-group">
+        <div class="control-row">
+            <span class="control-label">5도권 키(Key):</span>
+            <div id="keyButtons" style="display:flex; gap:5px; flex-wrap:wrap;"></div>
+        </div>
+        <div class="control-row">
+            <span class="control-label">연습 패턴:</span>
+            <button class="active" onclick="setPattern('135', this)">1 - 3 - 5</button>
+            <button onclick="setPattern('351', this)">3 - 5 - 1</button>
+            <button onclick="setPattern('531', this)">5 - 3 - 1</button>
+            <button onclick="setPattern('guide', this)">가이드톤 (3 - 7)</button>
+        </div>
+        <div class="control-row">
+            <span class="control-label">스트링 셋:</span>
+            <button onclick="setStringSet('all', this)">전체 줄 (참고용)</button>
+            <button class="active" onclick="setStringSet('654', this)">6-5-4번줄</button>
+            <button onclick="setStringSet('543', this)">5-4-3번줄</button>
+            <button onclick="setStringSet('432', this)">4-3-2번줄</button>
+            <button onclick="setStringSet('321', this)">3-2-1번줄</button>
+        </div>
+    </div>
+
+    <div class="fretboard-container">
+        <div class="fretboard" id="fretboard"></div>
+        <div class="legend">
+            <span class="leg-root">Root (1도)</span>
+            <span class="leg-3rd">3rd (3도)</span>
+            <span class="leg-5th">5th (5도)</span>
+            <span class="leg-7th">7th (가이드톤)</span>
+        </div>
+    </div>
+
+    <div class="timeline-section">
+        <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px;">현재 키의 투-파이브-원-식스 (2-5-1-6) 마디 진행</div>
+        <div class="timeline-bars" id="timeline-bars"></div>
+    </div>
+</div>
+
+<script>
+    // 5도권 순환을 위한 키 배열 설정
+    const circleOfFifths = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'Db', 'Ab', 'Eb', 'Bb', 'F'];
+    let currentKeyIndex = 0;
+    
+    // 반음계 매핑 테이블
+    const noteMap = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+    // 선택된 키를 기반으로 투-파이브-원-식스 (2-5-1-6) 코드 진행 생성
+    function getProgressionForKey(keyRoot) {
+        const rootIdx = noteMap.indexOf(keyRoot);
+        const getNote = (offset) => noteMap[(rootIdx + offset) % 12];
+        return [
+            { bar: 1, root: getNote(2), type: 'm7', name: getNote(2) + 'm7' },   // II 마디 (마이너 7th)
+            { bar: 2, root: getNote(7), type: '7', name: getNote(7) + '7' },     // V 마디 (도미넌트 7th)
+            { bar: 3, root: getNote(0), type: 'maj7', name: getNote(0) + 'maj7' }, // I 마디 (메이저 7th)
+            { bar: 4, root: getNote(9), type: 'm7', name: getNote(9) + 'm7' }    // VI 마디 (마이너 7th)
+        ];
+    }
+
+    let progression = getProgressionForKey('C');
+    let currentBarIndex = 0;
+    let currentPattern = '135';
+    let currentStringSet = '654'; 
+    let isPlaying = false;
+    let timer = null;
+    let currentBpm = 80;
+
+    // 코드별 인터벌(구성음 간격) 및 라벨 정의
+    const chordIntervals = {
+        'm7': { intervals: [0, 3, 7], labels: ['R', 'b3', '5'] },
+        '7': { intervals: [0, 4, 7], labels: ['R', '3', '5'] },
+        'maj7': { intervals: [0, 4, 7], labels: ['R', '3', '5'] }
+    };
+
+    // Web Audio API를 활용한 기타 사운드 재생 설정
+    let audioCtx = null;
+    function initAudioContext() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+    }
+
+    // 주파수에 따른 오디오톤 발생 함수 (삼각파 활용)
+    function playTone(frequency, duration = 0.5) {
+        initAudioContext();
+        if (!audioCtx) return;
+
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        osc.type = 'triangle'; 
+        osc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+
+        gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    }
+
+    // 기타 줄 번호와 프렛 위치를 기반으로 정확한 주파수 계산
+    function getFrequency(stringIdx, fret) {
+        const openMidiNotes = [64, 59, 55, 50, 45, 40]; // 1번줄(E)부터 6번줄(E)까지의 미디 노트 번호
+        const midiNote = openMidiNotes[stringIdx] + fret;
+        return 440 * Math.pow(2, (midiNote - 69) / 12);
+    }
+
+    // 애플리케이션 초기화
+    function initApp() {
+        initKeyButtons();
+        initFretboard();
+    }
+
+    // 5도권 키 선택 버튼 동적 생성
+    function initKeyButtons() {
+        const container = document.getElementById('keyButtons');
+        container.innerHTML = '';
+        circleOfFifths.forEach((key, idx) => {
+            const btn = document.createElement('button');
+            btn.innerText = key;
+            if (idx === currentKeyIndex) btn.classList.add('active');
+            btn.onclick = () => selectKey(idx);
+            container.appendChild(btn);
+        });
+    }
+
+    // 키 변경 시 호출되는 함수
+    function selectKey(idx) {
+        currentKeyIndex = idx;
+        const keyName = circleOfFifths[idx];
+        document.getElementById('currentKeyLabel').innerText = `현재 키: ${keyName} Major (5도권 순환 연습)`;
+        progression = getProgressionForKey(keyName);
+        currentBarIndex = 0;
+        initKeyButtons();
+        updateView();
+        initTimeline();
+    }
+
+    // 지판(Fretboard) 시각적 그리드 초기화
+    function initFretboard() {
+        const board = document.getElementById('fretboard');
+        board.innerHTML = '';
+
+        // 너트(Nut) 라인 생성
+        const nut = document.createElement('div');
+        nut.className = 'nut-line';
+        board.appendChild(nut);
+
+        // 6개의 기타 줄 생성
+        for (let i = 0; i < 6; i++) {
+            const stringDiv = document.createElement('div');
+            stringDiv.className = 'string';
+            stringDiv.style.top = (15 + i * 30) + 'px';
+            board.appendChild(stringDiv);
+        }
+
+        // 12프렛까지의 프렛 라인 생성
+        for (let f = 0; f <= 12; f++) {
+            const fretDiv = document.createElement('div');
+            fretDiv.className = 'fret-line';
+            let leftPos = f === 0 ? 0 : (55 + f * 62);
+            fretDiv.style.left = leftPos + 'px';
+            board.appendChild(fretDiv);
+        }
+        
+        updateView();
+        initTimeline();
+    }
+
+    // 연습 패턴 변경 (1-3-5, 3-5-1 등)
+    function setPattern(pattern, btnElement) {
+        currentPattern = pattern;
+        btnElement.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        btnElement.classList.add('active');
+        updateView();
+    }
+
+    // 스트링 셋 변경 (6-5-4, 5-4-3, 4-3-2 등)
+    function setStringSet(setStr, btnElement) {
+        currentStringSet = setStr;
+        btnElement.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        btnElement.classList.add('active');
+        updateView();
+    }
+
+    // 타임라인에서 특정 마디를 직접 선택했을 때
+    function selectBar(index) {
+        currentBarIndex = index;
+        updateView();
+        initTimeline();
+    }
+
+    // 하단 마디 진행 타임라인 UI 초기화
+    function initTimeline() {
+        const container = document.getElementById('timeline-bars');
+        container.innerHTML = '';
+        progression.forEach((chord, idx) => {
+            const card = document.createElement('div');
+            card.className = `bar-card ${idx === currentBarIndex ? 'active' : ''}`;
+            card.onclick = () => {
+                if(isPlaying) togglePlay();
+                selectBar(idx);
+            };
+            card.innerHTML = `
+                <div style="font-size:11px; color:var(--text-sub);">마디 ${chord.bar}</div>
+                <div class="bar-chord">${chord.name}</div>
+                <div class="bar-info">${currentPattern.toUpperCase()}</div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    let currentChordStrumNotes = [];  // 동시 스트럼할 음 목록
+    let currentChordNotesToPlay = []; // 순차적으로 아르페지오 연주할 음 목록
+
+    // 화면 및 지판에 음표 마커를 계산하여 그려주는 핵심 함수
+    function updateView() {
+        const currentChord = progression[currentBarIndex];
+        document.getElementById('display-chord-name').innerText = currentChord.name;
+
+        const board = document.getElementById('fretboard');
+        const oldMarkers = board.querySelectorAll('.note-marker');
+        oldMarkers.forEach(m => m.remove()); // 기존 마커 초기화
+
+        const rootIdx = noteMap.indexOf(currentChord.root);
+        const chordData = chordIntervals[currentChord.type] || chordData['maj7'];
+        
+        let targetIntervals = [];
+        let targetLabels = [];
+
+        // 연습 패턴에 따른 인터벌 및 라벨 매핑
+        if (currentPattern === '135') {
+            targetIntervals = [chordData.intervals[0], chordData.intervals[1], chordData.intervals[2]];
+            targetLabels = [chordData.labels[0], chordData.labels[1], chordData.labels[2]];
+        } else if (currentPattern === '351') {
+            targetIntervals = [chordData.intervals[1], chordData.intervals[2], chordData.intervals[0]];
+            targetLabels = [chordData.labels[1], chordData.labels[2], chordData.labels[0]];
+        } else if (currentPattern === '531') {
+            targetIntervals = [chordData.intervals[2], chordData.intervals[1], chordData.intervals[0]];
+            targetLabels = [chordData.labels[2], chordData.labels[1], chordData.labels[0]];
+        } else if (currentPattern === 'guide') {
+            targetIntervals = [chordData.intervals[1], 10]; 
+            targetLabels = [chordData.labels[1], 'b7'];
+        }
+
+        // 선택된 스트링 셋에 따른 허용 줄 인덱스 설정
+        let allowedStringIndices = [3, 4, 5]; 
+        if (currentStringSet === 'all') allowedStringIndices = [0, 1, 2, 3, 4, 5];
+        else if (currentStringSet === '654') allowedStringIndices = [3, 4, 5];
+        else if (currentStringSet === '543') allowedStringIndices = [2, 3, 4];
+        else if (currentStringSet === '432') allowedStringIndices = [1, 2, 3];
+        else if (currentStringSet === '321') allowedStringIndices = [0, 1, 2];
+
+        const uiStrings = ['E', 'B', 'G', 'D', 'A', 'E']; 
+        let rawCandidates = [];
+        
+        // 지판 전체를 돌며 현재 코드의 구성음 위치 후보 수집
+        uiStrings.forEach((openNote, stringIndex) => {
+            if (!allowedStringIndices.includes(stringIndex)) return;
+            let openNoteIdx = noteMap.indexOf(openNote);
+            
+            for (let fret = 1; fret <= 12; fret++) {
+                let currentNoteIdx = (openNoteIdx + fret) % 12;
+                
+                targetIntervals.forEach((interval, patternIdx) => {
+                    let matchNoteIdx = (rootIdx + interval) % 12;
+                    if (currentNoteIdx === matchNoteIdx) {
+                        rawCandidates.push({
+                            stringIdx: stringIndex,
+                            fret: fret,
+                            patternIdx: patternIdx, 
+                            label: targetLabels[patternIdx],
+                            freq: getFrequency(stringIndex, fret)
+                        });
+                    }
+                });
+            }
+        });
+
+        // '전체 줄' 모드일 때는 모든 후보를 참고용으로 표시
+        if (currentStringSet === 'all') {
+            rawCandidates.forEach(c => {
+                createNoteMarker(board, c.stringIdx, c.fret, c.label);
+            });
+            currentChordStrumNotes = [];
+            currentChordNotesToPlay = [];
+            return;
+        }
+
+        // [핵심 개선 알고리즘]: 
+        // 선택된 3개의 연속된 줄(예: 4, 3, 2번줄)에 각각 1개씩의 음(1도, 3도, 5도)이 
+        // 중복 없이 깔끔하게 분산 배치되는 포지션을 탐색합니다.
+        let validTriadGroup = null;
+
+        // 1프렛부터 9프렛까지 순회하며 3줄 모두에 음이 하나씩 존재하는 최적의 프렛 박스 탐색
+        for (let startFret = 1; startFret <= 9; startFret++) {
+            let candidateGroup = [];
+            let usedStringsInGroup = new Set();
+            let matchedTypes = new Set();
+
+            allowedStringIndices.forEach(strIdx => {
+                // 해당 줄, 시작 프렛부터 4프렛 이내에서 필요한 음을 탐색 (줄 중복 방지)
+                let foundNote = rawCandidates.find(c => 
+                    c.stringIdx === strIdx && 
+                    c.fret >= startFret && 
+                    c.fret <= startFret + 3 &&
+                    !usedStringsInGroup.has(c.stringIdx)
+                );
+                if (foundNote) {
+                    candidateGroup.push(foundNote);
+                    usedStringsInGroup.add(foundNote.stringIdx);
+                    matchedTypes.add(foundNote.patternIdx);
+                }
+            });
+
+            // 정확히 3개의 줄에 걸쳐 3가지 음(1도, 3도, 5도)이 모두 포함된 경우 확정
+            if (candidateGroup.length === 3 && matchedTypes.size === 3) {
+                validTriadGroup = candidateGroup;
+                break;
+            }
+        }
+
+        // 조건에 딱 맞는 그룹을 못 찾은 경우 대체 조합 적용
+        if (!validTriadGroup) {
+            let uniqueFilteredByString = [];
+            let usedStrings = new Set();
+            
+            [0, 1, 2].forEach(pIdx => {
+                let found = rawCandidates.find(c => c.patternIdx === pIdx && !usedStrings.has(c.stringIdx));
+                if (found) {
+                    usedStrings.add(found.stringIdx);
+                    uniqueFilteredByString.push(found);
+                }
+            });
+
+            rawCandidates.forEach(c => {
+                if (!uniqueFilteredByString.includes(c) && !usedStrings.has(c.stringIdx) && uniqueFilteredByString.length < 3) {
+                    usedStrings.add(c.stringIdx);
+                    uniqueFilteredByString.push(c);
+                }
+            });
+            validTriadGroup = uniqueFilteredByString;
+        }
+
+        // 필터링된 최종 트라이어드 구성음을 지판에 마커로 생성
+        validTriadGroup.forEach(c => {
+            createNoteMarker(board, c.stringIdx, c.fret, c.label);
+        });
+
+        currentChordStrumNotes = [...validTriadGroup];
+        currentChordNotesToPlay = [...validTriadGroup].sort((a, b) => a.patternIdx - b.patternIdx);
+    }
+
+    // 지판 위에 개별 음표 마커(DOM 요소)를 생성하고 위치시키는 함수
+    function createNoteMarker(board, stringIdx, fret, label) {
+        const marker = document.createElement('div');
+        marker.className = 'note-marker';
+        marker.dataset.string = stringIdx;
+        marker.dataset.fret = fret;
+        
+        let xPos = fret === 0 ? 27 : (55 + (fret - 1) * 62 + 31);
+        let yPos = 15 + stringIdx * 30;
+
+        marker.style.left = xPos + 'px';
+        marker.style.top = yPos + 'px';
+
+        // 음의 종류(Root, 3th, 5th 등)에 따라 색상 다르게 지정
+        if (label === 'R') marker.style.background = 'var(--root-color)';
+        else if (label.includes('3')) marker.style.background = 'var(--tone3-color)';
+        else if (label.includes('5')) marker.style.background = 'var(--tone5-color)';
+        else marker.style.background = 'var(--tone7-color); color: #000;';
+
+        marker.innerText = label;
+        board.appendChild(marker);
+    }
+
+    // 루프 재생 토글 함수
+    function togglePlay() {
+        if (currentStringSet === 'all') {
+            alert("전체 줄 모드는 참고용입니다. 연습할 3줄 스트링 셋(6-5-4, 5-4-3 등)을 선택해 주세요!");
+            return;
+        }
+        initAudioContext();
+        const btn = document.getElementById('playBtn');
+        isPlaying = !isPlaying;
+
+        if (isPlaying) {
+            btn.innerText = "■ 정지";
+            btn.classList.add('playing');
+            startMetronomeLoop();
+        } else {
+            btn.innerText = "▶ 루프 재생";
+            btn.classList.remove('playing');
+            clearInterval(timer);
+            document.getElementById('beatIndicator').innerText = "대기 중";
+            clearAllNeonEffects();
+        }
+    }
+
+    // 메트로놈 및 자동 마디 순환 루프 시작
+    function startMetronomeLoop() {
+        let barIntervalTime = (60 / currentBpm) * 4000; // 4박자 기준 마디 전환 시간
+        executePlayAndAdvance();
+
+        timer = setInterval(() => {
+            currentBarIndex = (currentBarIndex + 1) % progression.length;
+            executePlayAndAdvance();
+        }, barIntervalTime);
+    }
+
+    // 마디가 바뀔 때마다 사운드를 재생하고 시각 효과를 동기화하는 함수
+    function executePlayAndAdvance() {
+        updateView();
+        initTimeline();
+        
+        const indicator = document.getElementById('beatIndicator');
+        indicator.innerText = `연주 중! (${progression[currentBarIndex].name})`;
+
+        // 마디 시작 시 코드 구성음을 동시에 가볍게 훑어주는 효과 (스트럼)
+        currentChordStrumNotes.forEach((noteObj, idx) => {
+            setTimeout(() => {
+                if (isPlaying) {
+                    playTone(noteObj.freq, 0.4);
+                }
+            }, idx * 30);
+        });
+
+        let beatDuration = (60 / currentBpm) * 1000; 
+        
+        // 박자에 맞춰 아르페지오 각 음을 순차적으로 재생하고 네온 효과 부여
+        currentChordNotesToPlay.forEach((noteObj, index) => {
+            let triggerTime = beatDuration * (index + 1);
+
+            setTimeout(() => {
+                if (isPlaying) {
+                    playTone(noteObj.freq, 0.6); 
+                    clearAllNeonEffects();
+                    
+                    const targetMarker = document.querySelector(`.note-marker[data-string="${noteObj.stringIdx}"][data-fret="${noteObj.fret}"]`);
+                    if (targetMarker) {
+                        targetMarker.classList.add('playing-neon');
+                    }
+                }
+            }, triggerTime);
+        });
+
+        setTimeout(() => {
+            if (isPlaying) clearAllNeonEffects();
+        }, beatDuration * 3.8);
+    }
+
+    // 연주 중 강조된 네온 효과 제거
+    function clearAllNeonEffects() {
+        document.querySelectorAll('.note-marker').forEach(m => {
+            m.classList.remove('playing-neon');
+        });
+    }
+
+    // 슬라이더 조절을 통한 BPM 변경 처리
+    function updateBpm(val) {
+        currentBpm = val;
+        document.getElementById('bpmText').innerText = val;
+        if (isPlaying) {
+            clearInterval(timer);
+            startMetronomeLoop();
+        }
+    }
+
+    // 페이지 로드 시 앱 초기화 실행
+    window.onload = initApp;
+</script>
+
+</body>
+</html>
+```[cite: 2]
