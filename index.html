@@ -146,6 +146,8 @@
             background: #475569;
             z-index: 1;
         }
+        
+        /* 기본 음표 마커 스타일 */
         .note-marker {
             position: absolute;
             width: 26px;
@@ -159,14 +161,22 @@
             transform: translate(-50%, -50%);
             box-shadow: 0 2px 4px rgba(0,0,0,0.4);
             z-index: 10;
-            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.2s ease;
         }
 
+        /* 현재 마디가 아닌 다른 마디들의 음표 (투명도 부여) */
+        .note-marker.dimmed {
+            opacity: 0.25;
+            z-index: 5;
+        }
+
+        /* 현재 연주 중인 음의 네온 강조 효과 */
         .note-marker.playing-neon {
             box-shadow: 0 0 15px 5px #ffffff, 0 0 25px 8px var(--accent-color);
             transform: translate(-50%, -50%) scale(1.35);
             z-index: 30;
             border: 2px solid #ffffff;
+            opacity: 1 !important;
         }
 
         .timeline-section {
@@ -430,7 +440,7 @@
         updateView();
     }
 
-    // 스트링 셋 변경 (6-5-4, 5-4-3, 4-3-2 등)
+    // 스트링 셋 변경 (6-5-4, 5-4-3 등)
     function setStringSet(setStr, btnElement) {
         currentStringSet = setStr;
         btnElement.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
@@ -465,10 +475,10 @@
         });
     }
 
-    let currentChordStrumNotes = [];  // 동시 스트럼할 음 목록
-    let currentChordNotesToPlay = []; // 순차적으로 아르페지오 연주할 음 목록
+    let currentChordStrumNotes = [];  
+    let currentChordNotesToPlay = []; 
 
-    // 화면 및 지판에 음표 마커를 계산하여 그려주는 핵심 함수
+    // [개선된 뷰 함수]: 4개 코드 모두의 트라이어드 포지션을 계산하여 현재 마디는 진하게, 나머지는 투명하게 표시
     function updateView() {
         const currentChord = progression[currentBarIndex];
         document.getElementById('display-chord-name').innerText = currentChord.name;
@@ -476,27 +486,6 @@
         const board = document.getElementById('fretboard');
         const oldMarkers = board.querySelectorAll('.note-marker');
         oldMarkers.forEach(m => m.remove()); // 기존 마커 초기화
-
-        const rootIdx = noteMap.indexOf(currentChord.root);
-        const chordData = chordIntervals[currentChord.type] || chordData['maj7'];
-        
-        let targetIntervals = [];
-        let targetLabels = [];
-
-        // 연습 패턴에 따른 인터벌 및 라벨 매핑
-        if (currentPattern === '135') {
-            targetIntervals = [chordData.intervals[0], chordData.intervals[1], chordData.intervals[2]];
-            targetLabels = [chordData.labels[0], chordData.labels[1], chordData.labels[2]];
-        } else if (currentPattern === '351') {
-            targetIntervals = [chordData.intervals[1], chordData.intervals[2], chordData.intervals[0]];
-            targetLabels = [chordData.labels[1], chordData.labels[2], chordData.labels[0]];
-        } else if (currentPattern === '531') {
-            targetIntervals = [chordData.intervals[2], chordData.intervals[1], chordData.intervals[0]];
-            targetLabels = [chordData.labels[2], chordData.labels[1], chordData.labels[0]];
-        } else if (currentPattern === 'guide') {
-            targetIntervals = [chordData.intervals[1], 10]; 
-            targetLabels = [chordData.labels[1], 'b7'];
-        }
 
         // 선택된 스트링 셋에 따른 허용 줄 인덱스 설정
         let allowedStringIndices = [3, 4, 5]; 
@@ -507,109 +496,118 @@
         else if (currentStringSet === '321') allowedStringIndices = [0, 1, 2];
 
         const uiStrings = ['E', 'B', 'G', 'D', 'A', 'E']; 
-        let rawCandidates = [];
-        
-        // 지판 전체를 돌며 현재 코드의 구성음 위치 후보 수집
-        uiStrings.forEach((openNote, stringIndex) => {
-            if (!allowedStringIndices.includes(stringIndex)) return;
-            let openNoteIdx = noteMap.indexOf(openNote);
+
+        // 4개의 코드(2-5-1-6) 순회하며 각각의 트라이어드 그룹 계산
+        progression.forEach((chordObj, chordIdx) => {
+            const rootIdx = noteMap.indexOf(chordObj.root);
+            const chordData = chordIntervals[chordObj.type] || chordIntervals['maj7'];
             
-            for (let fret = 1; fret <= 12; fret++) {
-                let currentNoteIdx = (openNoteIdx + fret) % 12;
+            let targetIntervals = [];
+            let targetLabels = [];
+
+            if (currentPattern === '135') {
+                targetIntervals = [chordData.intervals[0], chordData.intervals[1], chordData.intervals[2]];
+                targetLabels = [chordData.labels[0], chordData.labels[1], chordData.labels[2]];
+            } else if (currentPattern === '351') {
+                targetIntervals = [chordData.intervals[1], chordData.intervals[2], chordData.intervals[0]];
+                targetLabels = [chordData.labels[1], chordData.labels[2], chordData.labels[0]];
+            } else if (currentPattern === '531') {
+                targetIntervals = [chordData.intervals[2], chordData.intervals[1], chordData.intervals[0]];
+                targetLabels = [chordData.labels[2], chordData.labels[1], chordData.labels[0]];
+            } else if (currentPattern === 'guide') {
+                targetIntervals = [chordData.intervals[1], 10]; 
+                targetLabels = [chordData.labels[1], 'b7'];
+            }
+
+            let rawCandidates = [];
+            uiStrings.forEach((openNote, stringIndex) => {
+                if (!allowedStringIndices.includes(stringIndex)) return;
+                let openNoteIdx = noteMap.indexOf(openNote);
                 
-                targetIntervals.forEach((interval, patternIdx) => {
-                    let matchNoteIdx = (rootIdx + interval) % 12;
-                    if (currentNoteIdx === matchNoteIdx) {
-                        rawCandidates.push({
-                            stringIdx: stringIndex,
-                            fret: fret,
-                            patternIdx: patternIdx, 
-                            label: targetLabels[patternIdx],
-                            freq: getFrequency(stringIndex, fret)
-                        });
+                for (let fret = 1; fret <= 12; fret++) {
+                    let currentNoteIdx = (openNoteIdx + fret) % 12;
+                    
+                    targetIntervals.forEach((interval, patternIdx) => {
+                        let matchNoteIdx = (rootIdx + interval) % 12;
+                        if (currentNoteIdx === matchNoteIdx) {
+                            rawCandidates.push({
+                                stringIdx: stringIndex,
+                                fret: fret,
+                                patternIdx: patternIdx, 
+                                label: targetLabels[patternIdx],
+                                freq: getFrequency(stringIndex, fret)
+                            });
+                        }
+                    });
+                }
+            });
+
+            if (currentStringSet === 'all') {
+                if (chordIdx === currentBarIndex) {
+                    rawCandidates.forEach(c => createNoteMarker(board, c.stringIdx, c.fret, c.label, false));
+                }
+                return;
+            }
+
+            // 최적의 트라이어드 폼 필터링
+            let validTriadGroup = null;
+            for (let startFret = 1; startFret <= 9; startFret++) {
+                let candidateGroup = [];
+                let usedStringsInGroup = new Set();
+                let matchedTypes = new Set();
+
+                allowedStringIndices.forEach(strIdx => {
+                    let foundNote = rawCandidates.find(c => 
+                        c.stringIdx === strIdx && 
+                        c.fret >= startFret && 
+                        c.fret <= startFret + 3 &&
+                        !usedStringsInGroup.has(c.stringIdx)
+                    );
+                    if (foundNote) {
+                        candidateGroup.push(foundNote);
+                        usedStringsInGroup.add(foundNote.stringIdx);
+                        matchedTypes.add(foundNote.patternIdx);
                     }
                 });
+
+                if (candidateGroup.length === 3 && matchedTypes.size === 3) {
+                    validTriadGroup = candidateGroup;
+                    break;
+                }
+            }
+
+            if (!validTriadGroup) {
+                let uniqueFilteredByString = [];
+                let usedStrings = new Set();
+                [0, 1, 2].forEach(pIdx => {
+                    let found = rawCandidates.find(c => c.patternIdx === pIdx && !usedStrings.has(c.stringIdx));
+                    if (found) {
+                        usedStrings.add(found.stringIdx);
+                        uniqueFilteredByString.push(found);
+                    }
+                });
+                validTriadGroup = uniqueFilteredByString;
+            }
+
+            // 현재 연주 중인 마디인지 여부에 따라 투명도(dimmed) 결정
+            const isCurrent = (chordIdx === currentBarIndex);
+
+            validTriadGroup.forEach(c => {
+                createNoteMarker(board, c.stringIdx, c.fret, c.label, !isCurrent);
+            });
+
+            // 현재 마디의 사운드 연주 데이터 저장
+            if (isCurrent) {
+                currentChordStrumNotes = [...validTriadGroup];
+                currentChordNotesToPlay = [...validTriadGroup].sort((a, b) => a.patternIdx - b.patternIdx);
             }
         });
-
-        // '전체 줄' 모드일 때는 모든 후보를 참고용으로 표시
-        if (currentStringSet === 'all') {
-            rawCandidates.forEach(c => {
-                createNoteMarker(board, c.stringIdx, c.fret, c.label);
-            });
-            currentChordStrumNotes = [];
-            currentChordNotesToPlay = [];
-            return;
-        }
-
-        // [핵심 개선 알고리즘]: 
-        // 선택된 3개의 연속된 줄(예: 4, 3, 2번줄)에 각각 1개씩의 음(1도, 3도, 5도)이 
-        // 중복 없이 깔끔하게 분산 배치되는 포지션을 탐색합니다.
-        let validTriadGroup = null;
-
-        // 1프렛부터 9프렛까지 순회하며 3줄 모두에 음이 하나씩 존재하는 최적의 프렛 박스 탐색
-        for (let startFret = 1; startFret <= 9; startFret++) {
-            let candidateGroup = [];
-            let usedStringsInGroup = new Set();
-            let matchedTypes = new Set();
-
-            allowedStringIndices.forEach(strIdx => {
-                // 해당 줄, 시작 프렛부터 4프렛 이내에서 필요한 음을 탐색 (줄 중복 방지)
-                let foundNote = rawCandidates.find(c => 
-                    c.stringIdx === strIdx && 
-                    c.fret >= startFret && 
-                    c.fret <= startFret + 3 &&
-                    !usedStringsInGroup.has(c.stringIdx)
-                );
-                if (foundNote) {
-                    candidateGroup.push(foundNote);
-                    usedStringsInGroup.add(foundNote.stringIdx);
-                    matchedTypes.add(foundNote.patternIdx);
-                }
-            });
-
-            // 정확히 3개의 줄에 걸쳐 3가지 음(1도, 3도, 5도)이 모두 포함된 경우 확정
-            if (candidateGroup.length === 3 && matchedTypes.size === 3) {
-                validTriadGroup = candidateGroup;
-                break;
-            }
-        }
-
-        // 조건에 딱 맞는 그룹을 못 찾은 경우 대체 조합 적용
-        if (!validTriadGroup) {
-            let uniqueFilteredByString = [];
-            let usedStrings = new Set();
-            
-            [0, 1, 2].forEach(pIdx => {
-                let found = rawCandidates.find(c => c.patternIdx === pIdx && !usedStrings.has(c.stringIdx));
-                if (found) {
-                    usedStrings.add(found.stringIdx);
-                    uniqueFilteredByString.push(found);
-                }
-            });
-
-            rawCandidates.forEach(c => {
-                if (!uniqueFilteredByString.includes(c) && !usedStrings.has(c.stringIdx) && uniqueFilteredByString.length < 3) {
-                    usedStrings.add(c.stringIdx);
-                    uniqueFilteredByString.push(c);
-                }
-            });
-            validTriadGroup = uniqueFilteredByString;
-        }
-
-        // 필터링된 최종 트라이어드 구성음을 지판에 마커로 생성
-        validTriadGroup.forEach(c => {
-            createNoteMarker(board, c.stringIdx, c.fret, c.label);
-        });
-
-        currentChordStrumNotes = [...validTriadGroup];
-        currentChordNotesToPlay = [...validTriadGroup].sort((a, b) => a.patternIdx - b.patternIdx);
     }
 
-    // 지판 위에 개별 음표 마커(DOM 요소)를 생성하고 위치시키는 함수
-    function createNoteMarker(board, stringIdx, fret, label) {
+    // 지판 위에 개별 음표 마커 생성 (isDimmed가 true이면 투명 처리)
+    function createNoteMarker(board, stringIdx, fret, label, isDimmed) {
         const marker = document.createElement('div');
-        marker.className = 'note-marker';
+        marker.className = `note-marker ${isDimmed ? 'dimmed' : ''}`;
         marker.dataset.string = stringIdx;
         marker.dataset.fret = fret;
         
@@ -619,7 +617,6 @@
         marker.style.left = xPos + 'px';
         marker.style.top = yPos + 'px';
 
-        // 음의 종류(Root, 3th, 5th 등)에 따라 색상 다르게 지정
         if (label === 'R') marker.style.background = 'var(--root-color)';
         else if (label.includes('3')) marker.style.background = 'var(--tone3-color)';
         else if (label.includes('5')) marker.style.background = 'var(--tone5-color)';
@@ -654,7 +651,7 @@
 
     // 메트로놈 및 자동 마디 순환 루프 시작
     function startMetronomeLoop() {
-        let barIntervalTime = (60 / currentBpm) * 4000; // 4박자 기준 마디 전환 시간
+        let barIntervalTime = (60 / currentBpm) * 4000; 
         executePlayAndAdvance();
 
         timer = setInterval(() => {
@@ -671,7 +668,6 @@
         const indicator = document.getElementById('beatIndicator');
         indicator.innerText = `연주 중! (${progression[currentBarIndex].name})`;
 
-        // 마디 시작 시 코드 구성음을 동시에 가볍게 훑어주는 효과 (스트럼)
         currentChordStrumNotes.forEach((noteObj, idx) => {
             setTimeout(() => {
                 if (isPlaying) {
@@ -682,7 +678,6 @@
 
         let beatDuration = (60 / currentBpm) * 1000; 
         
-        // 박자에 맞춰 아르페지오 각 음을 순차적으로 재생하고 네온 효과 부여
         currentChordNotesToPlay.forEach((noteObj, index) => {
             let triggerTime = beatDuration * (index + 1);
 
@@ -691,7 +686,7 @@
                     playTone(noteObj.freq, 0.6); 
                     clearAllNeonEffects();
                     
-                    const targetMarker = document.querySelector(`.note-marker[data-string="${noteObj.stringIdx}"][data-fret="${noteObj.fret}"]`);
+                    const targetMarker = document.querySelector(`.note-marker[data-string="${noteObj.stringIdx}"][data-fret="${noteObj.fret}"]:not(.dimmed)`);
                     if (targetMarker) {
                         targetMarker.classList.add('playing-neon');
                     }
@@ -704,14 +699,12 @@
         }, beatDuration * 3.8);
     }
 
-    // 연주 중 강조된 네온 효과 제거
     function clearAllNeonEffects() {
         document.querySelectorAll('.note-marker').forEach(m => {
             m.classList.remove('playing-neon');
         });
     }
 
-    // 슬라이더 조절을 통한 BPM 변경 처리
     function updateBpm(val) {
         currentBpm = val;
         document.getElementById('bpmText').innerText = val;
@@ -721,10 +714,8 @@
         }
     }
 
-    // 페이지 로드 시 앱 초기화 실행
     window.onload = initApp;
 </script>
 
 </body>
 </html>
-```[cite: 2]
